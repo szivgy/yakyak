@@ -3,6 +3,13 @@ shell    = require('electron').shell
 path     = require 'path'
 remote   = require('electron').remote
 i18n     = require 'i18n'
+unicodeMap = require '../emojishortcode'
+rUnicodeMap = {}
+do () ->
+    for key of unicodeMap
+        if unicodeMap.hasOwnProperty(key)
+            rUnicodeMap[unicodeMap[key]] = key
+    return
 
 {nameof, getProxiedName, fixlink, notificationCenterSupportsSound} = require '../util'
 
@@ -116,9 +123,39 @@ textMessage = (cont, proxied, showMessage = true) ->
               continue if proxied and i < 2
               continue unless seg.text
               seg.text
-          segs.join('')
+          text=segs.join('')
+          os = require('os')
+          
+          if os.release().startsWith("6.1") #win 7
+            i =0
+            newText=''
+            while (tmpChar=CharAt(text,i))!=''
+                if rUnicodeMap[tmpChar]
+                    newText += rUnicodeMap[tmpChar]
+                else
+                    newText +=tmpChar
+                i++
+          return newText  
     else if cont?.attachment?
       i18n.__('conversation.new_attachment:New message received (image or video)')
 
 openHangout = (conv_id) ->
     shell.openExternal "https://plus.google.com/hangouts/_/CONVERSATION/#{conv_id}"
+
+CharAt = (text, index) ->
+  returnValue = ''
+  end = text.length
+  text += ''
+  surrogatePairs = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g
+  while surrogatePairs.exec(text) != null
+    lastIndex = surrogatePairs.lastIndex
+    if lastIndex - 2 < index
+      index++
+    else
+      break
+  if index >= end or index < 0
+    return ''
+  returnValue += text.charAt(index)
+  if /[\uD800-\uDBFF]/.test(returnValue) and /[\uDC00-\uDFFF]/.test(text.charAt(index + 1))
+    returnValue += text.charAt(index + 1)
+  returnValue
